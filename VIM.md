@@ -11,6 +11,11 @@ Adjust indentation of a text block:
 Move a block of text
 
 1. Select text block (`Vjjj...` or `V<number>j`)
-2. Kill the block (`d`) to cut it, or yank the block (`y`) to copy it
-3. Move the cursor above the line where you want to paste
-4. Paste (`p`)
+1. Kill the block (`d`) to cut it, or yank the block (`y`) to copy it
+1. Move the cursor above the line where you want to paste
+1. Paste (`p`)
+
+Convert tabs to spaces
+
+1. Set tab width (`set tabstop=<number>`)
+1. Retab entire file (`:retab`)

@@ -278,13 +278,17 @@ Scale instances of a replica set:
 * `kubectl scale --replicas=6 -f replicaset-definition.yml`
 * `kubectl scale --replicas=6 replicaset <replicaset-name>`
 
-### Jobs
+### Jobs and CronJobs
 
 *Jobs* manage a workload that is meant to run for some fixed amount of time and then exit.
+
+You can scale workloads across `jobs` by setting `Job.spec.completions`. By default these will run serially; modify this with `Job.spec.parallelism`.
 
 #### Examples
 
 Job definition: [job-definition.yaml](./job-definition.yaml)
+
+Cron job definition: [cron-job-definition.yaml](./cron-job-definition.yaml)
 
 ### Deployments
 
@@ -318,9 +322,16 @@ Undo a rollout ("rollback"):
 
 ### Services
 
-*Services* make *pods* accessible to each other.
+*Services* enable communication between components within and outside of an application. A *cluster IP service* unifies communication between multiple pods into a single interface. A *node port service* is a *cluster IP service* that also exposes a port on the *node*.
 
-By defualt, a *service* assumes a *pod* is ready for traffic after the *pod*'s container has been created. You can modify this behavior with a *readiness probe*.
+A *node port service* (`Service.spec.type` of `NodePort`) needs three port configurations (in `Service.spec.ports`):
+* The `nodePort`, the port on the node's network that it will receive requests through. Node ports (by default) can only be in the 30000-32767 range. If not specified, a random available port is selected in the range.
+* The `port`, where the service is running on its cluster IP
+* The `targetPort`, where the pod is waiting for requests. If not specified, it defaults to `port`.
+
+Link a `service` to `pods` using `Service.spec.selector` to identify the pods. If the labels identify multiple pods (e.g. there are replicas), it will pick one using an algorithm. Be default, this algorithm selects a random pod with session affinity. If identified *pods* are distributed across *nodes*, the *service* will span all the necessary *nodes*.
+
+By defualt, a *service* assumes a *pod* is ready for traffic after the pod's container has been created. You can modify this behavior with a pod's *readiness probe*.
 
 
 #### Examples
