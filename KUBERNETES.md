@@ -125,6 +125,26 @@ Follow logs for a running pod:
 
 * `kubectl logs -f <pod-name> <container-name>
 
+### Volumes
+
+*Volumes* are a mechanism for persisting data outside of the lifecycle of a *pod*.
+
+When you create a *volume*, you can configure its storage in a number of ways.
+
+Volumes are mounted into a *pod* via `Pod.spec.containers.volumeMounts`. You can define a volume via `Pod.volumes`; there are lots of different types.
+
+A *persistent volume* is a cluster-wide pool of storage that pods can make *persistent volume claims* to. Then, you can use a *persistent volume claim* in a *pod* by specifying `Pod.spec.volumes.persistentVolumeClaim.claimName`. (Similarly for binding a claim in a *deployment* or *replica set*.)
+
+#### Storage Classes
+
+*Volumes* have to be created before they are available; this requires "static provisioning" if you are using an external storage solution such as hosted cloud storage. *Storage classes* are a solution for "dynamic provisioning" of volumes. *Storage classes* have an associated *provisioner* (in `StorageClass.provisioner`), but there are no associated *persistent volumes*. *Persistent volume claims* refer to an available *storage class* via `PersistentVolumeClaim.spec.storageClassName`.
+
+#### Examples
+
+Persistent volume definition: [pv-definition.yaml](./pv-definition.yaml)
+Persistent volume claim definition: [pvc-definition.yaml](./pvc-definition.yaml)
+Storage class (GCE): [sc-definition.yaml](./sc-definition.yaml)
+
 ### Resource requests
 
 The default *resource request* for a container is 0.5 CPU, and 256 MiB memory (for a default Kubernetes environment). This can be modified in `Pod.spec.containers.resources.requests`. Limits can be set with `Pod.spec.containers.resources.limits`. Pods that try to consume more CPU than their limit will be throttled; pods that exceed their memory limit can continue on for a while, but may eventually be terminated.
@@ -319,6 +339,92 @@ Undo a rollout ("rollback"):
 
 * `kubectl rollout undo deployment/<deployment-name>`
 
+### Stateful Sets
+
+*Stateful sets* are a variant of *deployments*. Unlike deployments:
+
+* *Pods* are created serially
+* *Pod names* are uniquely identifiable and stable
+* The `kind` is `StatefulSet`
+* They specify a *headless service* (via `StatefulSet.spec.serviceName`)
+
+Scaling also works in an ordered way (by default; configurable via `StatefulSet.spec.podManagementPolicy`).
+
+A *headless service* creates stable DNS entries for pods, without providing the other features of a *service*, like load balancing.
+
+#### Examples
+
+Create a *headless service* by setting `Service.spec.clusterIP` to `None` in service definition:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-h
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mysql
+  clusterIP: None    
+```
+
+Deploy a `Pod` manually to this headless service by defining a `Pod.spec.subdomain` that matches the `Service.metadata.name`, and `Pod.spec.hostname` set as well:
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-pod
+  labels:
+    app: myapp
+spec:
+  containers:
+  - image: mysql
+    name: mysql
+  subdomain: mysql-h
+  hostname: mysql-pod    
+```
+
+The DNS entry for this pod will be `mysql-pod.mysql-h.default.svc.cluster.local` (assuming it's deployed to the `default` namespace).
+
+In a `StatefulSet` definition, you don't need the subdomain or the hostname specified on the *pod* template (but the *headless service* must be provided):
+
+```
+apiVersion: v1
+kind: StatefulSet
+metadata:
+  name: mysql-deployment
+  labels:
+    app: mysql
+spec:
+  serviceName: mysql-h
+  replicas: 3
+  matchLabels:
+    app: mysql
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql
+        name: mysql  
+  volumeClaimTemplates:
+  - metadata:
+      name: data-volume
+    spec:
+      accessModes: [ReadWriteMany]
+      storageClassName: google-storage
+      resources:
+        requests:
+          storage: 500Mi
+```
+
+The pods in the stateful set will have DNS entries of `mysql-<x>.mysql-h.default.svc.cluster.local`, where `<x>` is the order in which they were deployed.
+
+This *stateful set* also uses a *persistent volume claim* template to assign an individual volume claim to each pod. This makes sense for e.g. data replication: if a pod is terminated and recreated, the persistent volume won't be released, and the PVC will be re-bound to the pod that restarts with the same identity.
 
 ### Services
 
@@ -379,6 +485,51 @@ spec:
 Expose a service imperatively:
 
 * `kubectl expose pod redis --port=6379 --name redis-service`
+
+### Ingresses
+
+An *ingress* is an object for routing requests to different *services*.
+
+To deploy an *ingress*, there must be an *ingress controller* in your cluster. Kubernetes doesn't deploy one by default.
+
+#### Examples
+
+An ingress definition looks kinda like this:
+
+```
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /app-one
+        backend:
+          serviceName: app-one-service
+          servicePort: 8080
+  - http:
+      paths:
+      - path: /app-two
+        backend:
+          serviceName: app-two-service
+          servicePort: 8080
+```
+
+This kind of ingress would map `<ingress-controller>/app-one` to `app-one-service:8080`, and `<ingress-controller>/app-two` to `app-two-service:8080`. Details depend on the configuration of the ingress controller (e.g. NGINX provides a "rewrite targets" configuration option to strip the paths of the original requests).
+
+### Network Policies
+
+By default, any *pod* can talk to any other *pod* within the Kubernetes private network. You can impose *network policies* to modify this behavior and control *ingress* and *egress* rules to and from a *pod*.
+
+A *network policy* identifies a *pod* by selecting against its labels.
+
+Not all networking solutions support network policies; depends on the configuration of the cluster.
+
+#### Examples
+
+Network policy definition: [network-policy-definition.yaml](./network-policy-definition.yaml)
 
 ### Nodes
 
@@ -548,3 +699,5 @@ A *cluster* is a grouped set of *nodes*.
 Show information about a cluster:
 
 - `kubectl cluster-info`
+
+
