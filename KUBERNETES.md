@@ -23,11 +23,25 @@ The **Agent** runs on each node in the cluster. It monitors and makes sure the c
 
 ---
 
-## `kubectl`
+### `kubectl`
 
 `kubectl` is a CLI tool that you use to deploy and manage applications deployed to a cluster, get status information, etc. Example kubectl commands:
 
-### General
+#### Examples
+
+These are the aliases for common Kubernetes objects:
+
+* **deploy** for deployment
+* **netpol** for networkpolicy
+* **ns** for namespace
+* **po** for pod
+* **pv** for persistentvolume
+* **pvc** for persistentvolumeclaim
+* **rs** for replicaset
+* **sa** for serviceaccount
+* **svc** for service
+
+#### Commands
 
 Get all the things:
 
@@ -366,7 +380,7 @@ spec:
   - port: 3306
   selector:
     app: mysql
-  clusterIP: None    
+  clusterIP: None
 ```
 
 Deploy a `Pod` manually to this headless service by defining a `Pod.spec.subdomain` that matches the `Service.metadata.name`, and `Pod.spec.hostname` set as well:
@@ -383,7 +397,7 @@ spec:
   - image: mysql
     name: mysql
   subdomain: mysql-h
-  hostname: mysql-pod    
+  hostname: mysql-pod
 ```
 
 The DNS entry for this pod will be `mysql-pod.mysql-h.default.svc.cluster.local` (assuming it's deployed to the `default` namespace).
@@ -410,7 +424,7 @@ spec:
     spec:
       containers:
       - image: mysql
-        name: mysql  
+        name: mysql
   volumeClaimTemplates:
   - metadata:
       name: data-volume
@@ -424,7 +438,7 @@ spec:
 
 The pods in the stateful set will have DNS entries of `mysql-<x>.mysql-h.default.svc.cluster.local`, where `<x>` is the order in which they were deployed.
 
-This *stateful set* also uses a *persistent volume claim* template to assign an individual volume claim to each pod. This makes sense for e.g. data replication: if a pod is terminated and recreated, the persistent volume won't be released, and the PVC will be re-bound to the pod that restarts with the same identity.
+This *stateful set* also uses a *persistent volume claim* template to assign an individual volume claim to each pod. This makes sense for e.g. data replication: if a pod is terminated and recreated, the persistent volume won't be released, and the PVC will be re-bound to the pod that restarts with the same identity. In other words, *stateful sets* ensure stable storage for *pods*.
 
 ### Services
 

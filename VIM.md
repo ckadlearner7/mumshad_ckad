@@ -19,3 +19,7 @@ Convert tabs to spaces
 
 1. Set tab width (`set tabstop=<number>`)
 1. Retab entire file (`:retab`)
+
+Use spaces instead of tabs
+
+1. set tabstop=2 shiftwidth=2 expandtab
